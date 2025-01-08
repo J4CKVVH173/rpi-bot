@@ -17,16 +17,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text="I'm a bot, please talk to me!")
 
 
-def replace_dot_with_comma(text: str) -> str:
-    # Заменяем точки на запятые
-    return text.replace('.', ',')
-
-async def get_system_status():
+async def get_system_status_html():
     # Получение температуры и напряжения
     temp_output = subprocess.check_output(["vcgencmd", "measure_temp"]).decode("utf-8")
     voltage_output = subprocess.check_output(["vcgencmd", "measure_volts"]).decode("utf-8")
-    temperature = replace_dot_with_comma(temp_output.split('=')[1].strip())
-    voltage = replace_dot_with_comma(voltage_output.split('=')[1].strip())
+    temperature = temp_output.split('=')[1].strip()
+    voltage = voltage_output.split('=')[1].strip()
 
     # Получение загрузки CPU и RAM
     cpu_usage = psutil.cpu_percent(interval=1)
@@ -44,36 +40,36 @@ async def get_system_status():
         try:
             if partition.mountpoint in allowed_mount_points or allowed_devices.match(partition.device.split("/")[-1]):
                 usage = psutil.disk_usage(partition.mountpoint)
-                total_size = usage.total / (1024 ** 3)  # В гигабайтах
+                total_size = usage.total / (1024**3)  # В гигабайтах
                 disk_info.append(
-                    f"🔹 *Диск {partition.device}* ({partition.mountpoint}):\n"
-                    f"   📊 *{replace_dot_with_comma(str(usage.percent))}%* использовано\n"
-                    f"   💾 *{replace_dot_with_comma(f'{usage.free / (1024 ** 3):.2f}')} GB* свободно из *{replace_dot_with_comma(f'{total_size:.2f}')} GB*"
+                    f"<li><b>Диск {partition.device}</b> ({partition.mountpoint}):<br>"
+                    f"   📊 <b>{usage.percent}%</b> использовано<br>"
+                    f"   💾 <b>{usage.free / (1024 ** 3):.2f} GB</b> свободно из <b>{total_size:.2f} GB</b></li>"
                 )
         except PermissionError:
             continue
 
     # Формирование итогового статуса с форматированием
     status = (
-        f"🖥️ *Статус системы:* \n\n"
-        f"🌡️ *Температура процессора:* {temperature}\n"
-        f"⚡️ *Напряжение:* {voltage}\n"
-        f"⚙️ *Загрузка CPU:* {cpu_usage}%\n"
-        f"🧠 *Загрузка RAM:* {ram_usage}%\n\n"
-        f"💾 *Информация о дисках:* \n"
+        f"<h1>🖥️ Статус системы:</h1>"
+        f"<p>🌡️ <b>Температура процессора:</b> {temperature}</p>"
+        f"<p>⚡️ <b>Напряжение:</b> {voltage}</p>"
+        f"<p>⚙️ <b>Загрузка CPU:</b> {cpu_usage}%</p>"
+        f"<p>🧠 <b>Загрузка RAM:</b> {ram_usage}%</p>"
+        f"<h2>💾 Информация о дисках:</h2>"
     )
 
     if disk_info:
-        status += "\n".join(disk_info)
+        status += f"<ul>{''.join(disk_info)}</ul>"
     else:
-        status += "🔴 Нет данных о дисках"
+        status += "<p>🔴 Нет данных о дисках</p>"
 
     return status
 
 
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = await get_system_status()
-    await context.bot.send_message(chat_id=update.effective_chat.id, parse_mode="Markdown", text=text)
+    await context.bot.send_message(chat_id=update.effective_chat.id, parse_mode="html", text=text)
 
 
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
