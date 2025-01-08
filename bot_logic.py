@@ -33,17 +33,17 @@ async def check_jellyfin_status(update: Update, context: ContextTypes.DEFAULT_TY
 
 async def get_jellyfin_logs(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Получение последних 15 строк логов из systemd
-    logs = subprocess.check_output(['journalctl', '-u', 'jellyfin', '--lines', '15'], stderr=subprocess.STDOUT)
-    message = f"Логи:\n {logs.decode('utf-8')}"
+    logs = subprocess.check_output(['journalctl', '-u', 'jellyfin', '--lines', '10'], stderr=subprocess.STDOUT)
+    message = f"Логи:\n ```{logs.decode('utf-8')}```"
     await context.bot.send_message(chat_id=update.effective_chat.id, text=message)
 
 
 async def get_jellyfin_errors(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Получаем последние 15 ошибок (предполагаем, что они содержат слово "error")
     logs = subprocess.check_output(
-        ['journalctl', '-u', 'jellyfin', '--lines', '15', '--grep', 'error'], stderr=subprocess.STDOUT
+        ['journalctl', '-u', 'jellyfin', '--lines', '10', '--grep', 'error'], stderr=subprocess.STDOUT
     )
-    message = f"Логи:\n {logs.decode('utf-8')}"
+    message = f"Логи:\n ```{logs.decode('utf-8')}```"
     await context.bot.send_message(chat_id=update.effective_chat.id, text=message)
 
 
@@ -59,8 +59,8 @@ async def restart_jellyfin(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def top_statistics(update: Update, context: ContextTypes.DEFAULT_TYPE):
     top_output = subprocess.check_output(['top', '-n', '1', '-o', '-%CPU', '-b'], stderr=subprocess.STDOUT).decode(
         'utf-8'
-    )
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=f"<pre>{top_output}</pre>", parse_mode='HTML')
+    ).split('\n')
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=f"<pre>{top_output[-20:]}</pre>", parse_mode='HTML')
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -134,7 +134,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/get_jellyfin_logs - Лог jellyfin\n"
         "/restart_jellyfin - Перезапуск jellyfin\n"
         "/get_jellyfin_errors - Лог ошибок jellyfin\n"
-        "/top_statistics - Статистика процессов\n"
+        "/top_statistics - Статистика 20 самых нагруженных процессов\n"
     )
     await context.bot.send_message(chat_id=update.effective_chat.id, text=help_text)
 
