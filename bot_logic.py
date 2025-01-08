@@ -41,6 +41,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/help - Показать список доступных команд\n"
         "/status - Показать статус системы (температура, загрузка ЦП и ОЗУ)\n"
         "/check_ssd_2tb - Проверяет - доступен ли SSD для чтения\n"
+        "/remount_ssd_2tb - Заново перемонтирует SSD\n"
     )
     await context.bot.send_message(chat_id=update.effective_chat.id, text=help_text)
 
