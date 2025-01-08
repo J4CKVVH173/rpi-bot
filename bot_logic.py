@@ -40,29 +40,29 @@ async def get_system_status():
         try:
             if partition.mountpoint in allowed_mount_points or allowed_devices.match(partition.device.split("/")[-1]):
                 usage = psutil.disk_usage(partition.mountpoint)
-                total_size = usage.total / (1024**3)  # В гигабайтах
+                total_size = usage.total / (1024 ** 3)  # В гигабайтах
                 disk_info.append(
-                    f"<li><b>Диск {partition.device}</b> ({partition.mountpoint}):<br>"
+                    f"🔹 <b>Диск {partition.device}</b> ({partition.mountpoint}):<br>"
                     f"   📊 <b>{usage.percent}%</b> использовано<br>"
-                    f"   💾 <b>{usage.free / (1024 ** 3):.2f} GB</b> свободно из <b>{total_size:.2f} GB</b></li>"
+                    f"   💾 <b>{usage.free / (1024 ** 3):.2f} GB</b> свободно из <b>{total_size:.2f} GB</b><br>"
                 )
         except PermissionError:
             continue
 
     # Формирование итогового статуса с форматированием
     status = (
-        f"<h1>🖥️ Статус системы:</h1>"
-        f"<p>🌡️ <b>Температура процессора:</b> {temperature}</p>"
-        f"<p>⚡️ <b>Напряжение:</b> {voltage}</p>"
-        f"<p>⚙️ <b>Загрузка CPU:</b> {cpu_usage}%</p>"
-        f"<p>🧠 <b>Загрузка RAM:</b> {ram_usage}%</p>"
-        f"<h2>💾 Информация о дисках:</h2>"
+        f"🖥️ <b>Статус системы:</b><br>"
+        f"🌡️ <b>Температура процессора:</b> {temperature}<br>"
+        f"⚡️ <b>Напряжение:</b> {voltage}<br>"
+        f"⚙️ <b>Загрузка CPU:</b> {cpu_usage}%<br>"
+        f"🧠 <b>Загрузка RAM:</b> {ram_usage}%<br><br>"
+        f"💾 <b>Информация о дисках:</b><br>"
     )
 
     if disk_info:
-        status += f"<ul>{''.join(disk_info)}</ul>"
+        status += "<br>".join(disk_info)
     else:
-        status += "<p>🔴 Нет данных о дисках</p>"
+        status += "🔴 Нет данных о дисках"
 
     return status
 
