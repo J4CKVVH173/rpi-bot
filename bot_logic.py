@@ -26,17 +26,23 @@ def get_system_status():
     memory = psutil.virtual_memory()
     ram_usage = memory.percent
 
-    # Получение информации о дисках
+    # Получаем список примонтированных дисков через df
+    df_output = subprocess.check_output(["df", "-h"]).decode("utf-8")
+    mounted_disks = set(line.split()[5] for line in df_output.splitlines()[1:])  # Сет для быстрого поиска
+
+    # Получение информации о дисках через psutil
     disk_info = []
     partitions = psutil.disk_partitions()
     for partition in partitions:
         try:
-            usage = psutil.disk_usage(partition.mountpoint)
-            disk_info.append(
-                f"🔹 **Диск {partition.device}** ({partition.mountpoint}):\n"
-                f"   📊 **{usage.percent}%** использовано\n"
-                f"   💾 **{usage.free / (1024 ** 3):.2f} GB** свободно"
-            )
+            # Если точка монтирования есть в списке примонтированных через df, то добавляем информацию
+            if partition.mountpoint in mounted_disks:
+                usage = psutil.disk_usage(partition.mountpoint)
+                disk_info.append(
+                    f"🔹 **Диск {partition.device}** ({partition.mountpoint}):\n"
+                    f"   📊 **{usage.percent}%** использовано\n"
+                    f"   💾 **{usage.free / (1024 ** 3):.2f} GB** свободно"
+                )
         except PermissionError:
             # Пропустить разделы, к которым нет доступа
             continue
@@ -55,7 +61,7 @@ def get_system_status():
 
 
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=get_system_status())
+    await context.bot.send_message(chat_id=update.effective_chat.id, parse_mode="Markdown", text=get_system_status())
 
 
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
