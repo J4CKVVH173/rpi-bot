@@ -35,7 +35,7 @@ async def get_jellyfin_logs(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Получение последних 15 строк логов из systemd
     logs = subprocess.check_output(['journalctl', '-u', 'jellyfin', '--lines', '10'], stderr=subprocess.STDOUT)
     message = f"Логи:\n ```{logs.decode('utf-8')}```"
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=message)
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=message, parse_mode='markdown')
 
 
 async def get_jellyfin_errors(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -44,7 +44,7 @@ async def get_jellyfin_errors(update: Update, context: ContextTypes.DEFAULT_TYPE
         ['journalctl', '-u', 'jellyfin', '--lines', '10', '--grep', 'error'], stderr=subprocess.STDOUT
     )
     message = f"Логи:\n ```{logs.decode('utf-8')}```"
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=message)
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=message,  parse_mode='markdown')
 
 
 async def restart_jellyfin(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -60,7 +60,7 @@ async def top_statistics(update: Update, context: ContextTypes.DEFAULT_TYPE):
     top_output = subprocess.check_output(['top', '-n', '1', '-o', '-%CPU', '-b'], stderr=subprocess.STDOUT).decode(
         'utf-8'
     ).split('\n')
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=f"<pre>{top_output[-20:]}</pre>", parse_mode='HTML')
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=f"<pre>{"\n.join("top_output[-20:])}</pre>", parse_mode='HTML')
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
