@@ -60,7 +60,7 @@ async def top_statistics(update: Update, context: ContextTypes.DEFAULT_TYPE):
     top_output = subprocess.check_output(['top', '-n', '1', '-o', '-%CPU', '-b'], stderr=subprocess.STDOUT).decode(
         'utf-8'
     ).split('\n')
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=f"<pre>{"\n.join("top_output[-20:])}</pre>", parse_mode='HTML')
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=f"<pre>{"\n".join(top_output[-20:])}</pre>", parse_mode='HTML')
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
