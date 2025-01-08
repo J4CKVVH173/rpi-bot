@@ -26,7 +26,31 @@ def get_system_status():
     memory = psutil.virtual_memory()
     ram_usage = memory.percent
 
-    status = f"Температура процессора: {temperature}\n" f"Загрузка CPU: {cpu_usage}%\n" f"Загрузка RAM: {ram_usage}%"
+    # Получение информации о дисках
+    disk_info = []
+    partitions = psutil.disk_partitions()
+    for partition in partitions:
+        try:
+            usage = psutil.disk_usage(partition.mountpoint)
+            disk_info.append(
+                f"🔹 **Диск {partition.device}** ({partition.mountpoint}):\n"
+                f"   📊 **{usage.percent}%** использовано\n"
+                f"   💾 **{usage.free / (1024 ** 3):.2f} GB** свободно"
+            )
+        except PermissionError:
+            # Пропустить разделы, к которым нет доступа
+            continue
+
+    # Формирование итогового статуса с форматированием
+    status = (
+        f"🖥️ *Статус системы:* \n\n"
+        f"🌡️ **Температура процессора:** {temperature}\n"
+        f"⚙️ **Загрузка CPU:** {cpu_usage}%\n"
+        f"🧠 **Загрузка RAM:** {ram_usage}%\n\n"
+        f"💾 *Информация о дисках:* \n"
+    )
+    status += "\n".join(disk_info) if disk_info else "🔴 Нет данных о дисках"
+
     return status
 
 
