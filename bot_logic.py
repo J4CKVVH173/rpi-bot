@@ -17,7 +17,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text="I'm a bot, please talk to me!")
 
 
-async def get_system_status_html():
+async def get_system_status():
     # Получение температуры и напряжения
     temp_output = subprocess.check_output(["vcgencmd", "measure_temp"]).decode("utf-8")
     voltage_output = subprocess.check_output(["vcgencmd", "measure_volts"]).decode("utf-8")
