@@ -20,7 +20,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def get_system_status():
     # Получение температуры
     temp_output = subprocess.check_output(["vcgencmd", "measure_temp"]).decode('utf-8')
-    temperature = temp_output.split('=')[1].strip()
+    temperature = temp_output.split('=')[1].strip().replace('.', '\.')
 
     # Получение загрузки CPU и RAM
     cpu_usage = psutil.cpu_percent(interval=1)
