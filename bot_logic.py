@@ -64,7 +64,7 @@ async def remount_ssd_2tb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         result = subprocess.run(
             ['/bin/bash', '/home/andrey/scripts/check_mount.sh'], capture_output=True, text=True, check=True
         )
-        message = f'SSD примонтирован {result.stdout.strip()}'
+        message = result.stdout.strip()
     except subprocess.CalledProcessError as e:
         message = f'Ошибка при примонтировании SSD: {str(e)}'
     finally:
