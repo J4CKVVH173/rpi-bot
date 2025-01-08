@@ -41,7 +41,7 @@ async def get_system_status():
                 usage = psutil.disk_usage(partition.mountpoint)
                 # Форматирование с экранированием Markdown
                 disk_info.append(
-                    f"🔹 *Диск {partition.device.replace('_', '\_')}* ({partition.mountpoint}):\n"
+                    f"🔹 *Диск {partition.device}* ({partition.mountpoint}):\n"
                     f"   📊 *{usage.percent}%* использовано\n"
                     f"   💾 *{usage.free / (1024 ** 3):.2f} GB* свободно"
                 )
@@ -52,7 +52,7 @@ async def get_system_status():
     # Формирование итогового статуса с форматированием
     status = (
         f"🖥️ *Статус системы:* \n\n"
-        f"🌡️ *Температура процессора:* {temperature.replace('_', '\_')}\n"
+        f"🌡️ *Температура процессора:* {temperature}\n"
         f"⚙️ *Загрузка CPU:* {cpu_usage}%\n"
         f"🧠 *Загрузка RAM:* {ram_usage}%\n\n"
         f"💾 *Информация о дисках:* \n"
