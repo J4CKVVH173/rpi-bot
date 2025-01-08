@@ -42,21 +42,21 @@ async def get_system_status():
                 usage = psutil.disk_usage(partition.mountpoint)
                 total_size = usage.total / (1024 ** 3)  # В гигабайтах
                 disk_info.append(
-                    f"🔹 <b>Диск {partition.device}</b> ({partition.mountpoint}):"
-                    f"\n📊 <b>{usage.percent}%</b> использовано"
-                    f"\n💾 <b>{usage.free / (1024 ** 3):.2f} GB</b> свободно из <b>{total_size:.2f} GB</b>"
+                    f"  🔹 <b>Диск {partition.device}</b> ({partition.mountpoint}):"
+                    f"\n  📊 <b>{usage.percent}%</b> использовано"
+                    f"\n  💾 <b>{usage.free / (1024 ** 3):.2f} GB</b> свободно из <b>{total_size:.2f} GB</b>\n"
                 )
         except PermissionError:
             continue
 
     # Формирование итогового статуса с форматированием
     status = (
-        f"🖥️ <b>Статус системы:</b>\n"
+        f"🖥️ <b>Статус системы:</b>\n\n"
         f"🌡️ <b>Температура процессора:</b> {temperature}\n"
         f"⚡️ <b>Напряжение:</b> {voltage}\n"
         f"⚙️ <b>Загрузка CPU:</b> {cpu_usage}%\n"
         f"🧠 <b>Загрузка RAM:</b> {ram_usage}%\n\n"
-        f"💾 <b>Информация о дисках:</b>\n"
+        f"💾 <b>Информация о дисках:</b>\n\n"
     )
 
     if disk_info:
