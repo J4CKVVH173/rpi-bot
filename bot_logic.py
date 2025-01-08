@@ -17,7 +17,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text="I'm a bot, please talk to me!")
 
 
-def escape_markdown(text: str) -> str:
+def escape_markdown_v2(text: str) -> str:
+    # Экранируем только символы, которые могут вызвать проблемы в Markdown
     return re.sub(r'([_*[\]()~`>#+-=|{}.!])', r'\\\1', text)
 
 
@@ -25,8 +26,8 @@ async def get_system_status():
     # Получение температуры и напряжения
     temp_output = subprocess.check_output(["vcgencmd", "measure_temp"]).decode("utf-8")
     voltage_output = subprocess.check_output(["vcgencmd", "measure_volts"]).decode("utf-8")
-    temperature = escape_markdown(temp_output.split('=')[1].strip())
-    voltage = escape_markdown(voltage_output.split('=')[1].strip())
+    temperature = escape_markdown_v2(temp_output.split('=')[1].strip())
+    voltage = escape_markdown_v2(voltage_output.split('=')[1].strip())
 
     # Получение загрузки CPU и RAM
     cpu_usage = psutil.cpu_percent(interval=1)
@@ -46,7 +47,7 @@ async def get_system_status():
                 usage = psutil.disk_usage(partition.mountpoint)
                 total_size = usage.total / (1024**3)  # В гигабайтах
                 disk_info.append(
-                    f"🔹 *Диск {escape_markdown(partition.device)}* ({escape_markdown(partition.mountpoint)}):\n"
+                    f"🔹 *Диск {escape_markdown_v2(partition.device)}* ({escape_markdown_v2(partition.mountpoint)}):\n"
                     f"   📊 *{usage.percent}%* использовано\n"
                     f"   💾 *{usage.free / (1024 ** 3):.2f} GB* свободно из *{total_size:.2f} GB*"
                 )
@@ -57,7 +58,7 @@ async def get_system_status():
     status = (
         f"🖥️ *Статус системы:* \n\n"
         f"🌡️ *Температура процессора:* {temperature}\n"
-        f"⚡ *Напряжение:* {voltage}\n"
+        f"⚡️ *Напряжение:* {voltage}\n"
         f"⚙️ *Загрузка CPU:* {cpu_usage}%\n"
         f"🧠 *Загрузка RAM:* {ram_usage}%\n\n"
         f"💾 *Информация о дисках:* \n"
