@@ -17,10 +17,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text="I'm a bot, please talk to me!")
 
 
+import re
+
 async def get_system_status():
-    # Получение температуры
+    # Получение температуры и напряжения
     temp_output = subprocess.check_output(["vcgencmd", "measure_temp"]).decode("utf-8")
+    voltage_output = subprocess.check_output(["vcgencmd", "measure_volts"]).decode("utf-8")
     temperature = temp_output.split('=')[1].strip()
+    voltage = voltage_output.split('=')[1].strip()
 
     # Получение загрузки CPU и RAM
     cpu_usage = psutil.cpu_percent(interval=1)
@@ -36,29 +40,27 @@ async def get_system_status():
     partitions = psutil.disk_partitions()
     for partition in partitions:
         try:
-            # Фильтрация по точкам монтирования и устройствам
             if partition.mountpoint in allowed_mount_points or allowed_devices.match(partition.device.split("/")[-1]):
                 usage = psutil.disk_usage(partition.mountpoint)
-                # Форматирование с экранированием Markdown
+                total_size = usage.total / (1024 ** 3)  # В гигабайтах
                 disk_info.append(
-                    f"🔹 *Диск {partition.device.replace('_', '\\_').replace('.', '\\.')}* ({partition.mountpoint.replace('_', '\\_').replace('.', '\\.')})\n"
+                    f"🔹 *Диск {partition.device.replace('_', '\\_')}* ({partition.mountpoint}):\n"
                     f"   📊 *{usage.percent}%* использовано\n"
-                    f"   💾 *{usage.free / (1024 ** 3):.2f} GB* свободно"
+                    f"   💾 *{usage.free / (1024 ** 3):.2f} GB* свободно из *{total_size:.2f} GB*"
                 )
         except PermissionError:
-            # Пропустить разделы, к которым нет доступа
             continue
 
     # Формирование итогового статуса с форматированием
     status = (
         f"🖥️ *Статус системы:* \n\n"
-        f"🌡️ *Температура процессора:* {temperature.replace('_', '\\_').replace('.', '\\.')}\n"
+        f"🌡️ *Температура процессора:* {temperature}\n"
+        f"⚡ *Напряжение:* {voltage}\n"
         f"⚙️ *Загрузка CPU:* {cpu_usage}%\n"
         f"🧠 *Загрузка RAM:* {ram_usage}%\n\n"
         f"💾 *Информация о дисках:* \n"
     )
 
-    # Если данные о дисках есть, добавляем их в статус
     if disk_info:
         status += "\n".join(disk_info)
     else:
