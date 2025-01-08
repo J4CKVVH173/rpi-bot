@@ -2,6 +2,7 @@ import logging
 import psutil
 import subprocess
 import os
+import re
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler
 
@@ -16,7 +17,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text="I'm a bot, please talk to me!")
 
 
-def get_system_status():
+async def get_system_status():
     # Получение температуры
     temp_output = subprocess.check_output(["vcgencmd", "measure_temp"]).decode("utf-8")
     temperature = temp_output.split('=')[1].strip()
@@ -26,23 +27,23 @@ def get_system_status():
     memory = psutil.virtual_memory()
     ram_usage = memory.percent
 
-    # Получаем список примонтированных дисков через df
-    df_output = subprocess.check_output(["df", "-h"]).decode("utf-8")
-    mounted_disks = set(line.split()[5] for line in df_output.splitlines()[1:])  # Сет для быстрого поиска
+    # Фильтрация дисков
+    allowed_mount_points = {"/", "/boot/firmware", "/mnt/SSD4TB/D"}
+    allowed_devices = re.compile(r"mmcblk0p[12]|sd[a-z]+\d+")
 
     # Получение информации о дисках через psutil
     disk_info = []
     partitions = psutil.disk_partitions()
     for partition in partitions:
         try:
-            # Если точка монтирования есть в списке примонтированных через df, то добавляем информацию
-            if partition.mountpoint in mounted_disks:
+            # Фильтрация по точкам монтирования и устройствам
+            if partition.mountpoint in allowed_mount_points or allowed_devices.match(partition.device.split("/")[-1]):
                 usage = psutil.disk_usage(partition.mountpoint)
-                # Применение жирного шрифта для использования диска и свободного места
+                # Форматирование с экранированием Markdown
                 disk_info.append(
-                    f"🔹 **Диск {partition.device}** ({partition.mountpoint}):\n"
-                    f"   📊 **{usage.percent}%** использовано\n"
-                    f"   💾 **{usage.free / (1024 ** 3):.2f} GB** свободно"
+                    f"🔹 *Диск {partition.device.replace('_', '\_')}* ({partition.mountpoint}):\n"
+                    f"   📊 *{usage.percent}%* использовано\n"
+                    f"   💾 *{usage.free / (1024 ** 3):.2f} GB* свободно"
                 )
         except PermissionError:
             # Пропустить разделы, к которым нет доступа
@@ -51,9 +52,9 @@ def get_system_status():
     # Формирование итогового статуса с форматированием
     status = (
         f"🖥️ *Статус системы:* \n\n"
-        f"🌡️ **Температура процессора:** {temperature}\n"
-        f"⚙️ **Загрузка CPU:** {cpu_usage}%\n"
-        f"🧠 **Загрузка RAM:** {ram_usage}%\n\n"
+        f"🌡️ *Температура процессора:* {temperature.replace('_', '\_')}\n"
+        f"⚙️ *Загрузка CPU:* {cpu_usage}%\n"
+        f"🧠 *Загрузка RAM:* {ram_usage}%\n\n"
         f"💾 *Информация о дисках:* \n"
     )
 
@@ -67,7 +68,8 @@ def get_system_status():
 
 
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(chat_id=update.effective_chat.id, parse_mode="Markdown", text=get_system_status())
+    text = await get_system_status()
+    await context.bot.send_message(chat_id=update.effective_chat.id, parse_mode="MarkdownV2", text=text)
 
 
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
