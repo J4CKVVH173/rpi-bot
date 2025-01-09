@@ -35,7 +35,12 @@ async def get_jellyfin_logs(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Retrieve the last 10 lines of the Jellyfin service logs."""
     logs = subprocess.check_output(['journalctl', '-u', 'jellyfin', '--lines', '10'], stderr=subprocess.STDOUT)
     message = f"<b>Логи Jellyfin:</b>\n<pre>{logs.decode('utf-8')}</pre>"
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=message, parse_mode='HTML')
+    try:
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=message, parse_mode='HTML')
+    except Exception as e:
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id, text=f"�� Ошибка получения логов Jellyfin: {e}"
+        )
 
 
 async def get_jellyfin_errors(update: Update, context: ContextTypes.DEFAULT_TYPE):
