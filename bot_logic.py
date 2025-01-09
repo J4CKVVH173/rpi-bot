@@ -14,8 +14,8 @@ with open(os.path.join(DIR_PATH, 'token.txt'), 'r') as token:
 
 
 def is_jellifyn_running() -> bool:
+    """Check if the Jellyfin service is running."""
     try:
-        # Проверка статуса процесса через systemctl
         subprocess.run(['systemctl', 'is-active', '--quiet', 'jellyfin'], check=True)
         return True
     except subprocess.CalledProcessError:
@@ -23,74 +23,82 @@ def is_jellifyn_running() -> bool:
 
 
 async def check_jellyfin_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Check the current status of the Jellyfin service."""
     if is_jellifyn_running():
-        message = "Jellyfin запущен"
+        message = "🟢 <b>Jellyfin запущен</b>"
     else:
-        message = "Jellyfin остановлен"
-
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=message)
+        message = "🔴 <b>Jellyfin остановлен</b>"
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=message, parse_mode="HTML")
 
 
 async def get_jellyfin_logs(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Получение последних 15 строк логов из systemd
+    """Retrieve the last 10 lines of the Jellyfin service logs."""
     logs = subprocess.check_output(['journalctl', '-u', 'jellyfin', '--lines', '10'], stderr=subprocess.STDOUT)
-    message = f"Логи:\n ```{logs.decode('utf-8')}```"
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=message, parse_mode='markdown')
+    message = f"<b>Логи Jellyfin:</b>\n<pre>{logs.decode('utf-8')}</pre>"
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=message, parse_mode='HTML')
 
 
 async def get_jellyfin_errors(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Получаем последние 15 ошибок (предполагаем, что они содержат слово "error")
+    """Retrieve the last 10 error entries from the Jellyfin logs."""
     logs = subprocess.check_output(
         ['journalctl', '-u', 'jellyfin', '--lines', '10', '--grep', 'error'], stderr=subprocess.STDOUT
     )
-    message = f"Логи:\n ```{logs.decode('utf-8')}```"
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=message,  parse_mode='markdown')
+    message = f"<b>Ошибки Jellyfin:</b>\n<pre>{logs.decode('utf-8')}</pre>"
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=message, parse_mode='HTML')
 
 
 async def restart_jellyfin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Restart the Jellyfin service."""
     try:
-        # Перезапуск сервиса Jellyfin
         subprocess.run(['sudo', 'systemctl', 'restart', 'jellyfin'], check=True)
-        await context.bot.send_message(chat_id=update.effective_chat.id, text="Jellyfin перезапущен")
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id, text="🔄 <b>Jellyfin перезапущен</b>", parse_mode='HTML'
+        )
     except subprocess.CalledProcessError as e:
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Ошибка перезапуска Jellyfin: {e}")
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id, text=f"❌ Ошибка перезапуска Jellyfin: {e}", parse_mode='HTML'
+        )
 
 
 async def top_statistics(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    top_output = subprocess.check_output(['top', '-n', '1', '-o', '-%CPU', '-b'], stderr=subprocess.STDOUT).decode(
-        'utf-8'
-    ).split('\n')
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=f"<pre>{"\n".join(top_output[-20:])}</pre>", parse_mode='HTML')
+    """Retrieve the top 20 CPU-consuming processes."""
+    top_output = (
+        subprocess.check_output(['top', '-n', '1', '-o', '-%CPU', '-b'], stderr=subprocess.STDOUT)
+        .decode('utf-8')
+        .split('\n')
+    )
+    message = f"<b>Топ 20 процессов по использованию CPU:</b>\n<pre>{'\n'.join(top_output[-20:])}</pre>"
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=message, parse_mode='HTML')
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(chat_id=update.effective_chat.id, text="I'm a bot, please talk to me!")
+    """Send a greeting message when the bot starts."""
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id, text="Привет! Я ваш бот для мониторинга системы.", parse_mode="HTML"
+    )
 
 
 async def get_system_status():
-    # Получение температуры и напряжения
+    """Retrieve system status, including CPU temperature, voltage, CPU and RAM usage, and disk usage."""
     temp_output = subprocess.check_output(["vcgencmd", "measure_temp"]).decode("utf-8")
     voltage_output = subprocess.check_output(["vcgencmd", "measure_volts"]).decode("utf-8")
     temperature = temp_output.split('=')[1].strip()
     voltage = voltage_output.split('=')[1].strip()
 
-    # Получение загрузки CPU и RAM
     cpu_usage = psutil.cpu_percent(interval=1)
     memory = psutil.virtual_memory()
     ram_usage = memory.percent
 
-    # Фильтрация дисков
     allowed_mount_points = {"/", "/boot/firmware", "/mnt/SSD4TB/D"}
     allowed_devices = re.compile(r"mmcblk0p[12]|sd[a-z]+\d+")
 
-    # Получение информации о дисках через psutil
     disk_info = []
     partitions = psutil.disk_partitions()
     for partition in partitions:
         try:
             if partition.mountpoint in allowed_mount_points or allowed_devices.match(partition.device.split("/")[-1]):
                 usage = psutil.disk_usage(partition.mountpoint)
-                total_size = usage.total / (1024**3)  # В гигабайтах
+                total_size = usage.total / (1024**3)
                 disk_info.append(
                     f"  🔹 <b>Диск {partition.device}</b> ({partition.mountpoint}):"
                     f"\n  📊 <b>{usage.percent}%</b> использовано"
@@ -99,7 +107,6 @@ async def get_system_status():
         except PermissionError:
             continue
 
-    # Формирование итогового статуса с форматированием
     status = (
         f"🖥️ <b>Статус системы:</b>\n\n"
         f"🌡️ <b>Температура процессора:</b> {temperature}\n"
@@ -118,50 +125,52 @@ async def get_system_status():
 
 
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Send system status to the user."""
     text = await get_system_status()
-    await context.bot.send_message(chat_id=update.effective_chat.id, parse_mode="html", text=text)
+    await context.bot.send_message(chat_id=update.effective_chat.id, parse_mode="HTML", text=text)
 
 
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Provide a list of available commands."""
     help_text = (
-        "Доступные команды:\n"
-        "/start - Начать работу с ботом\n"
-        "/help - Показать список доступных команд\n"
-        "/status - Показать статус системы (температура, загрузка ЦП и ОЗУ)\n"
-        "/check_ssd_2tb - Проверяет - доступен ли SSD для чтения\n"
-        "/remount_ssd_2tb - Заново перемонтирует SSD\n"
-        "/check_jellyfin_status - Статус jellyfin\n"
-        "/get_jellyfin_logs - Лог jellyfin\n"
-        "/restart_jellyfin - Перезапуск jellyfin\n"
-        "/get_jellyfin_errors - Лог ошибок jellyfin\n"
-        "/top_statistics - Статистика 20 самых нагруженных процессов\n"
+        "📚 <b>Доступные команды:</b>\n\n"
+        "🔹 /start - Начать работу с ботом\n"
+        "🔹 /help - Показать список доступных команд\n"
+        "🔹 /status - Показать статус системы (температура, загрузка ЦП и ОЗУ)\n"
+        "🔹 /check_ssd_2tb - Проверяет - доступен ли SSD для чтения\n"
+        "🔹 /remount_ssd_2tb - Заново перемонтирует SSD\n"
+        "🔹 /check_jellyfin_status - Статус jellyfin\n"
+        "🔹 /get_jellyfin_logs - Лог jellyfin\n"
+        "🔹 /restart_jellyfin - Перезапуск jellyfin\n"
+        "🔹 /get_jellyfin_errors - Лог ошибок jellyfin\n"
+        "🔹 /top_statistics - Статистика 20 самых нагруженных процессов\n"
     )
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=help_text)
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=help_text, parse_mode="HTML")
 
 
 async def status_ssd_2tb(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Функция проверяет статус SSD на 2 ГБ."""
+    """Check if the 2TB SSD is available for reading."""
     directory = "/mnt/SSD_4TB/D"
     try:
-        # если диск размонтировался, то выпадет ошибка чтения
         os.listdir(directory)
-        message = "Диск доступен для чтения"
+        message = "🟢 <b>Диск доступен для чтения</b>"
     except OSError as e:
-        message = f"Ошибка при чтении диска: {str(e)}"
+        message = f"🔴 <b>Ошибка при чтении диска:</b> {str(e)}"
     finally:
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=message)
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=message, parse_mode='HTML')
 
 
 async def remount_ssd_2tb(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Remount the 2TB SSD."""
     try:
         result = subprocess.run(
             ['/bin/bash', '/home/andrey/scripts/check_mount.sh'], capture_output=True, text=True, check=True
         )
-        message = result.stdout.strip()
+        message = f"🟢 <b>{result.stdout.strip()}</b>"
     except subprocess.CalledProcessError as e:
-        message = f'Ошибка при примонтировании SSD: {str(e)}'
+        message = f'🔴 <b>Ошибка при примонтировании SSD:</b> {str(e)}'
     finally:
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=message)
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=message, parse_mode='HTML')
 
 
 if __name__ == '__main__':
