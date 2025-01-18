@@ -155,6 +155,10 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🔹 /restart_jellyfin - Перезапуск jellyfin\n"
         "🔹 /get_jellyfin_errors - Лог ошибок jellyfin\n"
         "🔹 /top_statistics - Статистика 20 самых нагруженных процессов\n"
+        "🔹 /files - Файла сохраненные в хранилище\n"
+        "🔹 /file - Получить файл по id\n"
+        "🔹 /delete_file - Удалить файл по id\n"
+        "🔹 /clear - Очистить хранилище\n"
     )
     await context.bot.send_message(chat_id=update.effective_chat.id, text=help_text, parse_mode="HTML")
 
