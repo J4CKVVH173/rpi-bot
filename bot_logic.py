@@ -1,10 +1,16 @@
 import logging
+import datetime
 import psutil
 import subprocess
 import os
 import re
+import sqlite3
+from uuid import uuid4
 from telegram import Update
-from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler
+from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler
+from telegram.ext.filters import TEXT, ATTACHMENT
+
+from constant import CONTENT_DB_NAME, STORAGE
 
 DIR_PATH = os.path.dirname(__file__)
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -178,6 +184,125 @@ async def remount_ssd_2tb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(chat_id=update.effective_chat.id, text=message, parse_mode='HTML')
 
 
+async def save(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Функция для сохранения информации в хранилище."""
+
+    def save_to_file(name, content, db):
+        file_name = str(uuid4())
+        with open(os.path.join(STORAGE, file_name), 'w') as f:
+            f.write(content)
+
+        creation = str(datetime.datetime.now())
+
+        cursor = db.cursor()
+
+        cursor.execute(
+            'INSERT INTO Content (name, unique_name, creation, is_file) VALUES (?, ?, ?, ?)',
+            (name, file_name, creation, False),
+        )
+        db.commit()
+
+    if update.message.document:
+        file = await update.message.document.get_file()
+        unique_name = str(uuid4())
+        file_name = update.message.text if update.message.text else update.message.document.file_name
+        await file.download_to_drive(
+            custom_path=os.path.join(STORAGE, unique_name),
+        )
+        with sqlite3.connect(CONTENT_DB_NAME) as db:
+            cursor = db.cursor()
+
+            cursor.execute(
+                'INSERT INTO Content (name, unique_name, creation, is_file) VALUES (?, ?, ?, ?)',
+                (file_name, unique_name, str(datetime.datetime.now()), True),
+            )
+            db.commit()
+    else:
+        incoming_request = update.message.text.split(' ', 1)
+
+        if not os.path.exists(STORAGE):
+            os.makedirs(STORAGE)
+
+        with sqlite3.connect(CONTENT_DB_NAME) as db:
+            try:
+                save_to_file(incoming_request[0], incoming_request[1], db)
+            except IndexError:
+                await context.bot.send_message(
+                    chat_id=update.effective_chat.id,
+                    text='🔴 Не сохранено\n Нужно передать в виде: <Имя файла> <Контент>',
+                )
+                return
+
+    await context.bot.send_message(chat_id=update.effective_chat.id, text='🟢 Файл записан в хранилище')
+
+
+async def all_files(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    with sqlite3.connect(CONTENT_DB_NAME) as db:
+        cursor = db.cursor()
+        cursor.execute('SELECT id, name, creation FROM Content')
+        files = cursor.fetchall()
+        # Добавляем строки таблицы
+        message = "ID - Name - Creation Date\n"
+
+        # Добавляем строки таблицы с выравниванием
+        for file_id, name, creation in files:
+            creation_date = datetime.datetime.strptime(creation, '%Y-%m-%d %H:%M:%S.%f')
+            formatted_creation = creation_date.strftime('%Y-%m-%d %H:%M')
+            message += f"{file_id} - {name} - {str(formatted_creation)}\n"
+
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=message, parse_mode='HTML')
+
+
+async def get_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    db_id = update.message.text.split(' ')[1]
+    with sqlite3.connect(CONTENT_DB_NAME) as db:
+        cursor = db.cursor()
+        cursor.execute(f'SELECT name, unique_name, is_file FROM Content WHERE id = {db_id}')
+        name, unique_name, is_file = cursor.fetchall()[0]
+        if not is_file:
+            with open(os.path.join(STORAGE, unique_name), 'r') as f:
+                await context.bot.send_message(chat_id=update.effective_chat.id, text=f.read())
+        else:
+            with open(os.path.join(STORAGE, unique_name), 'rb') as f:
+                await context.bot.send_document(update.effective_chat.id, f, filename=name)
+
+
+async def clear_storage(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Метод полностью очищает хранилище."""
+    with sqlite3.connect(CONTENT_DB_NAME) as db:
+        cursor = db.cursor()
+        cursor.execute('SELECT unique_name FROM Content')
+        files = cursor.fetchall()
+        cursor.execute('DELETE FROM Content')
+        db.commit()
+
+        try:
+            for file_name in files:
+                os.remove(os.path.join(STORAGE, file_name))
+        except Exception:
+            pass
+
+    await context.bot.send_message(chat_id=update.effective_chat.id, text='🟢 Хранилище очищено')
+
+
+async def delete_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Метод удаляет файл по id."""
+    file_id = update.message.text.split(' ')[1]
+    with sqlite3.connect(CONTENT_DB_NAME) as db:
+        cursor = db.cursor()
+        cursor.execute(f'SELECT unique_name FROM Content WHERE id = {file_id}')
+        file_name = cursor.fetchall()[0][0]
+        cursor.execute(f'DELETE FROM Content WHERE id = {file_id}')
+        db.commit()
+
+        try:
+            os.remove(os.path.join(STORAGE, file_name))
+        except Exception:
+            pass
+
+    await context.bot.send_message(chat_id=update.effective_chat.id, text='🟢 Файл удален')
+
+
 if __name__ == '__main__':
     application = ApplicationBuilder().token(TOKEN).build()
 
@@ -191,6 +316,13 @@ if __name__ == '__main__':
     restart_jellyfin_handler = CommandHandler('restart_jellyfin', restart_jellyfin)
     get_jellyfin_errors_handler = CommandHandler('get_jellyfin_errors', get_jellyfin_errors)
     top_statistics_handler = CommandHandler('top_statistics', top_statistics)
+    files_handler = CommandHandler('files', all_files)
+    clear_handler = CommandHandler('clear', clear_storage)
+    get_file_handler = CommandHandler('file', get_file, has_args=True)
+    delete_file_handler = CommandHandler('delete_file', delete_file, has_args=True)
+
+    save_handler = MessageHandler(TEXT, save)
+    attach_handler = MessageHandler(ATTACHMENT, save)
 
     application.add_handler(start_handler)
     application.add_handler(status_handler)
@@ -202,5 +334,12 @@ if __name__ == '__main__':
     application.add_handler(restart_jellyfin_handler)
     application.add_handler(get_jellyfin_errors_handler)
     application.add_handler(top_statistics_handler)
+    application.add_handler(get_file_handler)
+    application.add_handler(files_handler)
+    application.add_handler(clear_handler)
+    application.add_handler(delete_file_handler)
+
+    application.add_handler(save_handler)
+    application.add_handler(attach_handler)
 
     application.run_polling()
