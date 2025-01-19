@@ -1,6 +1,6 @@
 import sqlite3
 
-from constant import CONTENT_DB_NAME
+from constants import CONTENT_DB_NAME
 
 # Устанавливаем соединение с базой данных
 connection = sqlite3.connect(CONTENT_DB_NAME)
@@ -17,7 +17,10 @@ is_file INTEGER NOT NULL
 )
 ''')
 
-cursor.execute('CREATE INDEX idx_unique_name ON Content (unique_name)')
+try:
+    cursor.execute('CREATE INDEX idx_unique_name ON Content (unique_name)')
+except sqlite3.OperationalError:
+    print("Index already exists")
 
 # Сохраняем изменения и закрываем соединение
 connection.commit()
